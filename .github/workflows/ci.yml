@@ -86,9 +86,20 @@ jobs:
              npm run build
              cd ../backend
              ../backend/.venv/bin/pip install -r requirements.txt
-             sudo systemctl restart brawl-stats
-             sudo systemctl is-active --quiet brawl-stats
-             sudo nginx -t
-             sudo systemctl reload nginx
-             curl --fail --silent http://127.0.0.1/api/health'
+             echo "STEP 1: Restarting backend"
+	     sudo systemctl restart brawl-stats
+
+	     echo "STEP 2: Checking backend"
+	     sudo systemctl is-active --quiet brawl-stats
+
+	     echo "STEP 3: Testing nginx"
+	     sudo nginx -t
+
+	     echo "STEP 4: Reloading nginx"
+	     sudo systemctl reload nginx
+
+	     echo "STEP 5: Checking API"
+	     curl --show-error --fail --verbose http://127.0.0.1/api/health
+
+	     echo "DEPLOYMENT SUCCESS"
 
