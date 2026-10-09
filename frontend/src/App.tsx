@@ -246,7 +246,7 @@ export default function App() {
       b.starPowers?.label ?? "—", b.gadgets?.label ?? "—",
       b.gears?.join("; ") ?? "Unavailable",
     ]);
-    const escape = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+    const escape = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
     const csv = [columns, ...rows].map((row) => row.map(escape).join(",")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
     const link = document.createElement("a");
