@@ -54,3 +54,18 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         run: npm run build
+        
+jobs:
+  backend-check:
+    # Your existing backend job stays here
+
+  frontend-build:
+    # Your existing frontend job stays here
+
+  deploy:
+    name: Deploy to EC2
+    needs: [backend-check, frontend-build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    # Add the remaining deployment steps here
