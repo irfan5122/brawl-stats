@@ -1,4 +1,3 @@
-
 name: Brawl Stats CI/CD
 
 on:
@@ -14,7 +13,6 @@ jobs:
   backend-check:
     name: Python backend checks
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -35,7 +33,6 @@ jobs:
   frontend-build:
     name: React frontend build
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -60,7 +57,6 @@ jobs:
     needs: [backend-check, frontend-build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-
     steps:
       - name: Deploy over SSH
         env:
@@ -72,34 +68,36 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/ec2_key
           chmod 600 ~/.ssh/ec2_key
-
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
 
           ssh -i ~/.ssh/ec2_key \
             -o BatchMode=yes \
-            "$EC2_USER@$EC2_HOST" \
-            'set -eu
-             cd /opt/brawl-stats
-             git pull --ff-only origin main
-             cd frontend
-             npm ci
-             npm run build
-             cd ../backend
-             ../backend/.venv/bin/pip install -r requirements.txt
-             echo "STEP 1: Restarting backend"
-	     sudo systemctl restart brawl-stats
+            "$EC2_USER@$EC2_HOST" 'bash -s' <<'REMOTE'
+          set -eu
+          cd /opt/brawl-stats
+          git pull --ff-only origin main
 
-	     echo "STEP 2: Checking backend"
-	     sudo systemctl is-active --quiet brawl-stats
+          cd frontend
+          npm ci
+          npm run build
 
-	     echo "STEP 3: Testing nginx"
-	     sudo nginx -t
+          cd ../backend
+          ../backend/.venv/bin/pip install -r requirements.txt
 
-	     echo "STEP 4: Reloading nginx"
-	     sudo systemctl reload nginx
+          echo "STEP 1: Restarting backend"
+          sudo systemctl restart brawl-stats
 
-	     echo "STEP 5: Checking API"
-	     curl --show-error --fail --verbose http://127.0.0.1/api/health
+          echo "STEP 2: Checking backend"
+          sudo systemctl is-active --quiet brawl-stats
 
-	     echo "DEPLOYMENT SUCCESS"
+          echo "STEP 3: Testing nginx"
+          sudo nginx -t
 
+          echo "STEP 4: Reloading nginx"
+          sudo systemctl reload nginx
+
+          echo "STEP 5: Checking API"
+          curl --show-error --fail --silent --retry 5 --retry-connrefused --retry-delay 2 http://127.0.0.1/api/health
+          echo
+          echo "DEPLOYMENT SUCCESS"
+          REMOTE
