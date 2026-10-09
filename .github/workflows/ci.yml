@@ -1,5 +1,5 @@
 
-name: Brawl Stats CI
+name: Brawl Stats CI/CD
 
 on:
   push:
@@ -54,13 +54,6 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         run: npm run build
-        
-jobs:
-  backend-check:
-    # Your existing backend job stays here
-
-  frontend-build:
-    # Your existing frontend job stays here
 
   deploy:
     name: Deploy to EC2
@@ -68,4 +61,34 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
-    # Add the remaining deployment steps here
+    steps:
+      - name: Deploy over SSH
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          set -eu
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+          ssh -i ~/.ssh/ec2_key \
+            -o BatchMode=yes \
+            "$EC2_USER@$EC2_HOST" \
+            'set -eu
+             cd /opt/brawl-stats
+             git pull --ff-only origin main
+             cd frontend
+             npm ci
+             npm run build
+             cd ../backend
+             ../backend/.venv/bin/pip install -r requirements.txt
+             sudo systemctl restart brawl-stats
+             sudo systemctl is-active --quiet brawl-stats
+             sudo nginx -t
+             sudo systemctl reload nginx
+             curl --fail --silent http://127.0.0.1/api/health'
+
